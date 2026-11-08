@@ -8,6 +8,8 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -19,9 +21,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.tabs.TabLayout
 import com.journeyapps.barcodescanner.ScanContract
@@ -39,6 +44,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var menuButton: ImageButton
     private lateinit var tabLayout: TabLayout
     private lateinit var photoRecyclerView: RecyclerView
+    private lateinit var musicRecyclerView: RecyclerView
+
+    // Music UI
+    private lateinit var musicControlBar: View
+    private lateinit var searchInput: EditText
+    private lateinit var toggleGridView: Button
+    private lateinit var bottomPlayerBar: View
+    private lateinit var currentSongTitle: TextView
+    private lateinit var playPauseBtn: ImageButton
+    private lateinit var nextBtn: ImageButton
 
     private lateinit var serverIpInput: EditText
     private lateinit var tokenInput: EditText
@@ -65,13 +80,22 @@ class MainActivity : AppCompatActivity() {
     private lateinit var photoAdapter: PhotoAdapter
     private val photoList = mutableListOf<String>()
 
+    private lateinit var musicAdapter: MusicAdapter
+    private val musicList = mutableListOf<MusicFile>()
+    private var isGridView = false
+
     private val uploader by lazy { ChunkUploader(contentResolver) }
 
     private val requestStoragePermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        if (isGranted) loadPhotos()
-        else Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+        if (isGranted) {
+            val currentTab = tabLayout.getTabAt(tabLayout.selectedTabPosition)?.text?.toString()
+            if (currentTab == "Photos") loadPhotos()
+            else if (currentTab == "Music") loadMusic()
+        } else {
+            Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private val scanQrLauncher = registerForActivityResult(ScanContract()) { result ->
@@ -125,6 +149,16 @@ class MainActivity : AppCompatActivity() {
         menuButton = findViewById(R.id.menuButton)
         tabLayout = findViewById(R.id.tabLayout)
         photoRecyclerView = findViewById(R.id.photoRecyclerView)
+        musicRecyclerView = findViewById(R.id.musicRecyclerView)
+        
+        musicControlBar = findViewById(R.id.musicControlBar)
+        searchInput = findViewById(R.id.searchInput)
+        toggleGridView = findViewById(R.id.toggleGridView)
+        
+        bottomPlayerBar = findViewById(R.id.bottomPlayerBar)
+        currentSongTitle = findViewById(R.id.currentSongTitle)
+        playPauseBtn = findViewById(R.id.playPauseBtn)
+        nextBtn = findViewById(R.id.nextBtn)
 
         serverIpInput = findViewById(R.id.serverIpInput)
         tokenInput = findViewById(R.id.tokenInput)
@@ -136,6 +170,21 @@ class MainActivity : AppCompatActivity() {
         receiverStatusText = findViewById(R.id.receiverStatusText)
         scanQrButton = findViewById(R.id.scanQrButton)
         cancelButton = findViewById(R.id.cancelButton)
+
+        // 1. Fix Bottom Player Overlap
+        ViewCompat.setOnApplyWindowInsetsListener(bottomPlayerBar) { view, insets ->
+            val navBarHeight = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            view.setPadding(8, view.paddingTop, 8, navBarHeight + 8)
+            insets
+        }
+
+        MusicPlayer.onSongChanged = { song ->
+            currentSongTitle.text = song.title
+            bottomPlayerBar.visibility = View.VISIBLE
+        }
+        MusicPlayer.onPlayStateChanged = { playing ->
+            playPauseBtn.setImageResource(if (playing) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play)
+        }
 
         serverIpInput.setText("192.168.137.1")
         tokenInput.setText("")
@@ -149,29 +198,57 @@ class MainActivity : AppCompatActivity() {
         photoAdapter = PhotoAdapter(photoList)
         photoRecyclerView.adapter = photoAdapter
 
-        menuButton.setOnClickListener {
-            drawerLayout.openDrawer(GravityCompat.START)
+        // Setup Music List
+        musicRecyclerView.layoutManager = LinearLayoutManager(this)
+        musicAdapter = MusicAdapter(musicList) { song, index ->
+            MusicPlayer.playSong(song, index, musicList)
+        }
+        musicRecyclerView.adapter = musicAdapter
+
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val query = s.toString().lowercase()
+                val filtered = musicList.filter { it.title.lowercase().contains(query) }
+                musicAdapter.updateList(filtered)
+                MusicPlayer.currentList = filtered
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        toggleGridView.setOnClickListener {
+            isGridView = !isGridView
+            toggleGridView.text = if (isGridView) "List" else "Grid"
+            musicAdapter.setGrid(isGridView)
+            musicRecyclerView.layoutManager = if (isGridView) GridLayoutManager(this, 3) else LinearLayoutManager(this)
         }
 
+        playPauseBtn.setOnClickListener { MusicPlayer.togglePlayPause() }
+        nextBtn.setOnClickListener { MusicPlayer.playNext() }
+
+        menuButton.setOnClickListener { drawerLayout.openDrawer(GravityCompat.START) }
+
         val tabs = arrayOf("History", "Apps", "Photos", "Videos", "Music", "Files", "Contacts")
-        for (tab in tabs) {
-            tabLayout.addTab(tabLayout.newTab().setText(tab))
-        }
+        for (tab in tabs) tabLayout.addTab(tabLayout.newTab().setText(tab))
 
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 val tabName = tab?.text?.toString() ?: ""
+                photoRecyclerView.visibility = View.GONE
+                musicRecyclerView.visibility = View.GONE
+                musicControlBar.visibility = View.GONE
+                showTransferForm()
 
                 if (tabName == "Photos") {
                     photoRecyclerView.visibility = View.VISIBLE
                     hideTransferForm()
                     checkAndLoadPhotos()
-                } else if (tabName == "History") {
-                    photoRecyclerView.visibility = View.GONE
-                    showTransferForm()
-                } else {
-                    photoRecyclerView.visibility = View.GONE
-                    showTransferForm()
+                } else if (tabName == "Music") {
+                    musicRecyclerView.visibility = View.VISIBLE
+                    musicControlBar.visibility = View.VISIBLE
+                    hideTransferForm()
+                    checkAndLoadMusic()
+                } else if (tabName != "History") {
                     Toast.makeText(this@MainActivity, "$tabName coming soon!", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -180,16 +257,11 @@ class MainActivity : AppCompatActivity() {
         })
 
         scanQrButton.setOnClickListener {
-            val hasCamera = ContextCompat.checkSelfPermission(
-                this, Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-            if (hasCamera) launchScanner()
-            else cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            val hasCamera = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+            if (hasCamera) launchScanner() else cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
 
-        selectFileButton.setOnClickListener {
-            pickFileLauncher.launch("*/*")
-        }
+        selectFileButton.setOnClickListener { pickFileLauncher.launch("*/*") }
 
         sendButton.setOnClickListener {
             val uri = selectedFileUri ?: return@setOnClickListener
@@ -202,24 +274,8 @@ class MainActivity : AppCompatActivity() {
             startUpload(uri, ip, token)
         }
 
-        cancelButton.setOnClickListener {
-            handleCancelOrPause()
-        }
-
-        startReceiverButton.setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                if (ContextCompat.checkSelfPermission(
-                        this, Manifest.permission.POST_NOTIFICATIONS
-                    ) != PackageManager.PERMISSION_GRANTED
-                ) {
-                    requestPermissions(
-                        arrayOf(Manifest.permission.POST_NOTIFICATIONS), 200
-                    )
-                    return@setOnClickListener
-                }
-            }
-            startReceiver()
-        }
+        cancelButton.setOnClickListener { handleCancelOrPause() }
+        startReceiverButton.setOnClickListener { startReceiver() }
     }
 
     private fun hideTransferForm() {
@@ -241,38 +297,65 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkAndLoadPhotos() {
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_IMAGES
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-
-        if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
-            loadPhotos()
-        } else {
-            requestStoragePermission.launch(permission)
-        }
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_IMAGES else Manifest.permission.READ_EXTERNAL_STORAGE
+        if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) loadPhotos() else requestStoragePermission.launch(permission)
     }
 
     private fun loadPhotos() {
         photoList.clear()
         val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATA)
-        val cursor = contentResolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            projection, null, null, "${MediaStore.Images.Media.DATE_ADDED} DESC"
-        )
-
+        val cursor = contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, null, null, "${MediaStore.Images.Media.DATE_ADDED} DESC")
         cursor?.use {
             val dataColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-            while (it.moveToNext()) {
-                photoList.add(it.getString(dataColumn))
-            }
+            while (it.moveToNext()) photoList.add(it.getString(dataColumn))
         }
         photoAdapter.notifyDataSetChanged()
+        if (photoList.isEmpty()) Toast.makeText(this, "No photos found", Toast.LENGTH_SHORT).show()
+    }
 
-        if (photoList.isEmpty()) {
-            Toast.makeText(this, "No photos found", Toast.LENGTH_SHORT).show()
+    private fun checkAndLoadMusic() {
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE
+        if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) loadMusic() else requestStoragePermission.launch(permission)
+    }
+
+    private fun loadMusic() {
+        musicList.clear()
+        val projection = arrayOf(
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.DATA,
+            MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.SIZE
+        )
+        val cursor = contentResolver.query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, projection, null, null, "${MediaStore.Audio.Media.TITLE} ASC")
+        
+        cursor?.use {
+            val titleCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+            val dataCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+            val artistCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+            val durationCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+            val sizeCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+            
+            while (it.moveToNext()) {
+                val path = it.getString(dataCol) ?: ""
+                if (path.isNotEmpty()) {
+                    val durationMs = it.getLong(durationCol)
+                    val mins = (durationMs / 1000) / 60
+                    val secs = (durationMs / 1000) % 60
+                    val durationStr = String.format("%d:%02d", mins, secs)
+                    
+                    musicList.add(MusicFile(
+                        title = it.getString(titleCol) ?: "Unknown",
+                        path = path,
+                        artist = it.getString(artistCol) ?: "Unknown Artist",
+                        duration = durationStr,
+                        size = formatBytes(it.getLong(sizeCol))
+                    ))
+                }
+            }
         }
+        musicAdapter.updateList(musicList)
+        if (musicList.isEmpty()) Toast.makeText(this, "No music found", Toast.LENGTH_SHORT).show()
     }
 
     private fun launchScanner() {
@@ -288,13 +371,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun startReceiver() {
         val intent = Intent(this, ReceiverService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
-        receiverStatusText.text =
-            "Receiver: listening on port 8080\nSend a file from Windows to this phone's IP."
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+        receiverStatusText.text = "Receiver: listening on port 8080\nSend a file from Windows to this phone's IP."
     }
 
     private fun handleCancelOrPause() {
@@ -321,11 +399,9 @@ class MainActivity : AppCompatActivity() {
         isPaused = false
         cancelButton.text = "Pause"
         cancelButton.isEnabled = true
-
         lastServerIp = serverIp
         lastToken = token
         lastSessionId = resumeId
-
         val fileName = selectedFileName ?: "unknown_file"
         val fileSize = selectedFileSize
 
@@ -337,36 +413,20 @@ class MainActivity : AppCompatActivity() {
                 sendButton.isEnabled = false
                 selectFileButton.isEnabled = false
             }
-
             try {
                 val result = uploader.uploadFile(
-                    uri = uri,
-                    filename = fileName,
-                    totalSize = fileSize,
-                    serverIp = serverIp,
-                    token = token,
-                    resumeId = resumeId,
-                    cancel = cancelFlag,
-                    pause = pauseFlag,
+                    uri = uri, filename = fileName, totalSize = fileSize,
+                    serverIp = serverIp, token = token, resumeId = resumeId,
+                    cancel = cancelFlag, pause = pauseFlag,
                     callbacks = object : ChunkUploader.Callbacks {
-                        override fun onHashing() {
-                            lifecycleScope.launch(Dispatchers.Main) {
-                                statusText.text = "Hashing…"
-                            }
-                        }
-
+                        override fun onHashing() { lifecycleScope.launch(Dispatchers.Main) { statusText.text = "Hashing…" } }
                         override fun onSessionStarted(sessionId: String, totalChunks: Int, neededChunks: Int) {
                             lastSessionId = sessionId
                             lifecycleScope.launch(Dispatchers.Main) {
-                                val label = if (neededChunks < totalChunks) {
-                                    "Resuming (${totalChunks - neededChunks}/$totalChunks done)"
-                                } else {
-                                    "Uploading 0/$neededChunks chunks"
-                                }
+                                val label = if (neededChunks < totalChunks) "Resuming (${totalChunks - neededChunks}/$totalChunks done)" else "Uploading 0/$neededChunks chunks"
                                 statusText.text = label
                             }
                         }
-
                         override fun onChunkDone(index: Int, done: Int, total: Int) {
                             lifecycleScope.launch(Dispatchers.Main) {
                                 statusText.text = "Uploading $done/$total chunks"
@@ -376,7 +436,6 @@ class MainActivity : AppCompatActivity() {
                         }
                     },
                 )
-
                 withContext(Dispatchers.Main) {
                     statusText.text = "Success!\n${result.storedFilename}\n${formatBytes(result.sizeBytes)}\nSHA: ${result.sha256.take(16)}…"
                     progressBar.progress = 100
@@ -386,9 +445,7 @@ class MainActivity : AppCompatActivity() {
                     cancelButton.text = "Pause"
                 }
             } catch (e: ChunkUploader.UploadCancelled) {
-                lastSessionId?.let { sid ->
-                    uploader.cancelSession(serverIp, token, sid)
-                }
+                lastSessionId?.let { sid -> uploader.cancelSession(serverIp, token, sid) }
                 withContext(Dispatchers.Main) {
                     statusText.text = "Cancelled."
                     progressBar.visibility = ProgressBar.GONE

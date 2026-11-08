@@ -6,14 +6,14 @@
     android:layout_height="match_parent">
 
     <!-- MAIN CONTENT -->
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
         android:background="#FFFFFF">
 
         <!-- TOP GREEN BAR -->
         <RelativeLayout
+            android:id="@+id/topBar"
             android:layout_width="match_parent"
             android:layout_height="60dp"
             android:background="#009688"
@@ -53,6 +53,7 @@
             android:id="@+id/tabLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_below="@id/topBar"
             android:background="#009688"
             app:tabIndicatorColor="#FFFFFF"
             app:tabSelectedTextColor="#FFFFFF"
@@ -61,10 +62,47 @@
             app:tabGravity="fill"
             app:tabMinWidth="80dp" />
 
-        <!-- CONTENT AREA -->
-        <ScrollView
+        <!-- SEARCH & TOGGLE BAR (Pinned below tabs, hidden by default) -->
+        <LinearLayout
+            android:id="@+id/musicControlBar"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="wrap_content"
+            android:layout_below="@id/tabLayout"
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:visibility="gone"
+            android:gravity="center_vertical"
+            android:background="#F5F5F5">
+            
+            <EditText
+                android:id="@+id/searchInput"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:hint="Search music..."
+                android:textColor="#212121"
+                android:background="#FFFFFF"
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp"
+                android:layout_marginRight="8dp"
+                android:singleLine="true"/>
+
+            <Button
+                android:id="@+id/toggleGridView"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:text="Grid"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#009688"/>
+        </LinearLayout>
+
+        <!-- CONTENT AREA (ScrollView) -->
+        <ScrollView
+            android:id="@+id/mainScrollView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/musicControlBar"
+            android:layout_above="@id/bottomPlayerBar">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -103,21 +141,74 @@
                 <ProgressBar android:id="@+id/progressBar" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:progressTint="#009688" android:visibility="gone" android:layout_marginTop="8dp"/>
                 <TextView android:id="@+id/statusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Ready" android:textColor="#009688" android:layout_marginTop="8dp"/>
 
-                <!-- THE PHOTO GRID RECYCLERVIEW -->
+                <!-- RECYCLERVIEWS -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/photoRecyclerView"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:visibility="gone" />
 
-                <!-- Dummy hidden buttons for Kotlin logic to not crash -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/musicRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
+                <!-- Hidden buttons -->
                 <Button android:id="@+id/cancelButton" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone"/>
                 <Button android:id="@+id/startReceiverButton" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone"/>
                 <TextView android:id="@+id/receiverStatusText" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone"/>
 
             </LinearLayout>
         </ScrollView>
-    </LinearLayout>
+
+        <!-- BOTTOM MUSIC PLAYER BAR -->
+        <RelativeLayout
+            android:id="@+id/bottomPlayerBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:fitsSystemWindows="true"
+            android:background="#212121"
+            android:visibility="gone"
+            android:paddingTop="8dp"
+            android:paddingBottom="12dp"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp">
+
+            <TextView
+                android:id="@+id/currentSongTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_toLeftOf="@id/playPauseBtn"
+                android:text="Song Name"
+                android:textColor="#FFFFFF"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="14sp"/>
+
+            <ImageButton
+                android:id="@+id/playPauseBtn"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_centerInParent="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_media_play"
+                android:tint="#009688"/>
+
+            <ImageButton
+                android:id="@+id/nextBtn"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_alignParentRight="true"
+                android:layout_centerVertical="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_media_next"
+                android:tint="#FFFFFF"/>
+        </RelativeLayout>
+
+    </RelativeLayout>
 
     <!-- SIDEBAR (DRAWER) -->
     <LinearLayout
@@ -133,12 +224,10 @@
             android:background="#009688"
             android:gravity="center"
             android:orientation="vertical">
-
             <ImageView android:layout_width="64dp" android:layout_height="64dp" android:src="@drawable/ic_person" android:background="#FFFFFF" android:backgroundTint="#FFFFFF" android:padding="4dp"/>
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SHAREX User" android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold" android:layout_marginTop="8dp"/>
         </LinearLayout>
 
-        <!-- Sidebar Menu Items -->
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="  Profile" android:padding="16dp" android:textSize="16sp" android:textColor="#212121"/>
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="  Language" android:padding="16dp" android:textSize="16sp" android:textColor="#212121"/>
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="  Settings" android:padding="16dp" android:textSize="16sp" android:textColor="#212121"/>
