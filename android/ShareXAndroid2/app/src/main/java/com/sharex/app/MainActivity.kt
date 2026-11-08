@@ -6,7 +6,9 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -19,6 +21,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.tabs.TabLayout
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
@@ -34,6 +38,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var menuButton: ImageButton
     private lateinit var tabLayout: TabLayout
+    private lateinit var photoRecyclerView: RecyclerView
 
     private lateinit var serverIpInput: EditText
     private lateinit var tokenInput: EditText
@@ -57,7 +62,17 @@ class MainActivity : AppCompatActivity() {
     private var lastToken: String? = null
     private var isPaused = false
 
+    private lateinit var photoAdapter: PhotoAdapter
+    private val photoList = mutableListOf<String>()
+
     private val uploader by lazy { ChunkUploader(contentResolver) }
+
+    private val requestStoragePermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) loadPhotos()
+        else Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+    }
 
     private val scanQrLauncher = registerForActivityResult(ScanContract()) { result ->
         if (result.contents == null) {
@@ -106,10 +121,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Initialize Sidebar & Tabs
         drawerLayout = findViewById(R.id.drawer_layout)
         menuButton = findViewById(R.id.menuButton)
         tabLayout = findViewById(R.id.tabLayout)
+        photoRecyclerView = findViewById(R.id.photoRecyclerView)
 
         serverIpInput = findViewById(R.id.serverIpInput)
         tokenInput = findViewById(R.id.tokenInput)
@@ -129,12 +144,15 @@ class MainActivity : AppCompatActivity() {
         cancelButton.text = "Pause"
         receiverStatusText.text = "Receiver: stopped"
 
-        // --- Setup Sidebar (Drawer) ---
+        // Setup Photo Grid
+        photoRecyclerView.layoutManager = GridLayoutManager(this, 3)
+        photoAdapter = PhotoAdapter(photoList)
+        photoRecyclerView.adapter = photoAdapter
+
         menuButton.setOnClickListener {
             drawerLayout.openDrawer(GravityCompat.START)
         }
 
-        // --- Setup Tabs (History, Apps, Photos, etc.) ---
         val tabs = arrayOf("History", "Apps", "Photos", "Videos", "Music", "Files", "Contacts")
         for (tab in tabs) {
             tabLayout.addTab(tabLayout.newTab().setText(tab))
@@ -142,14 +160,25 @@ class MainActivity : AppCompatActivity() {
 
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
-                // Coming soon feature
-                Toast.makeText(this@MainActivity, "${tab?.text} coming soon!", Toast.LENGTH_SHORT).show()
+                val tabName = tab?.text?.toString() ?: ""
+
+                if (tabName == "Photos") {
+                    photoRecyclerView.visibility = View.VISIBLE
+                    hideTransferForm()
+                    checkAndLoadPhotos()
+                } else if (tabName == "History") {
+                    photoRecyclerView.visibility = View.GONE
+                    showTransferForm()
+                } else {
+                    photoRecyclerView.visibility = View.GONE
+                    showTransferForm()
+                    Toast.makeText(this@MainActivity, "$tabName coming soon!", Toast.LENGTH_SHORT).show()
+                }
             }
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        // --- QR Scanner ---
         scanQrButton.setOnClickListener {
             val hasCamera = ContextCompat.checkSelfPermission(
                 this, Manifest.permission.CAMERA
@@ -158,7 +187,6 @@ class MainActivity : AppCompatActivity() {
             else cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
 
-        // --- File Selection & Transfer ---
         selectFileButton.setOnClickListener {
             pickFileLauncher.launch("*/*")
         }
@@ -191,6 +219,59 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             startReceiver()
+        }
+    }
+
+    private fun hideTransferForm() {
+        serverIpInput.visibility = View.GONE
+        tokenInput.visibility = View.GONE
+        selectFileButton.visibility = View.GONE
+        sendButton.visibility = View.GONE
+        progressBar.visibility = View.GONE
+        statusText.visibility = View.GONE
+    }
+
+    private fun showTransferForm() {
+        serverIpInput.visibility = View.VISIBLE
+        tokenInput.visibility = View.VISIBLE
+        selectFileButton.visibility = View.VISIBLE
+        sendButton.visibility = View.VISIBLE
+        progressBar.visibility = View.VISIBLE
+        statusText.visibility = View.VISIBLE
+    }
+
+    private fun checkAndLoadPhotos() {
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+
+        if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
+            loadPhotos()
+        } else {
+            requestStoragePermission.launch(permission)
+        }
+    }
+
+    private fun loadPhotos() {
+        photoList.clear()
+        val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATA)
+        val cursor = contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection, null, null, "${MediaStore.Images.Media.DATE_ADDED} DESC"
+        )
+
+        cursor?.use {
+            val dataColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+            while (it.moveToNext()) {
+                photoList.add(it.getString(dataColumn))
+            }
+        }
+        photoAdapter.notifyDataSetChanged()
+
+        if (photoList.isEmpty()) {
+            Toast.makeText(this, "No photos found", Toast.LENGTH_SHORT).show()
         }
     }
 

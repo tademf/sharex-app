@@ -56,7 +56,10 @@
             android:background="#009688"
             app:tabIndicatorColor="#FFFFFF"
             app:tabSelectedTextColor="#FFFFFF"
-            app:tabTextColor="#B2DFDB" />
+            app:tabTextColor="#B2DFDB"
+            app:tabMode="scrollable"
+            app:tabGravity="fill"
+            app:tabMinWidth="80dp" />
 
         <!-- CONTENT AREA -->
         <ScrollView
@@ -100,6 +103,13 @@
                 <ProgressBar android:id="@+id/progressBar" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:progressTint="#009688" android:visibility="gone" android:layout_marginTop="8dp"/>
                 <TextView android:id="@+id/statusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Ready" android:textColor="#009688" android:layout_marginTop="8dp"/>
 
+                <!-- THE PHOTO GRID RECYCLERVIEW -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/photoRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
                 <!-- Dummy hidden buttons for Kotlin logic to not crash -->
                 <Button android:id="@+id/cancelButton" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone"/>
                 <Button android:id="@+id/startReceiverButton" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone"/>
@@ -123,7 +133,7 @@
             android:background="#009688"
             android:gravity="center"
             android:orientation="vertical">
-            
+
             <ImageView android:layout_width="64dp" android:layout_height="64dp" android:src="@drawable/ic_person" android:background="#FFFFFF" android:backgroundTint="#FFFFFF" android:padding="4dp"/>
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SHAREX User" android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold" android:layout_marginTop="8dp"/>
         </LinearLayout>
