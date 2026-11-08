@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import socket
+import time
 import uuid
 from pathlib import Path
 
@@ -17,7 +18,6 @@ app = FastAPI(title="SHAREX Receiver", version="0.3.0")
 DOWNLOAD_DIR = Path(__file__).resolve().parent.parent / "downloads"
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-# Pairing token lifetime and manager
 PAIRING_TOKEN_TTL = 300  # 5 minutes
 tokens = TokenManager(ttl_seconds=PAIRING_TOKEN_TTL)
 
@@ -35,17 +35,9 @@ def sanitize_filename(filename: str | None) -> str:
 
 
 def local_ip_on_hotspot() -> str:
-    """
-    Return the local IP on the hotspot network.
-    Uses a UDP trick: connecting a UDP socket to a remote address
-    doesn't send packets but reveals which local interface would be used.
-    Falls back to 127.0.0.1 if no route exists.
-    """
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.settimeout(0.1)
-        # 192.168.137.0/24 is the default Windows hotspot subnet.
-        # Using its gateway here just picks the right interface.
         s.connect(("192.168.137.1", 1))
         ip = s.getsockname()[0]
         s.close()
@@ -61,15 +53,6 @@ async def health():
 
 @app.get("/pairing")
 async def issue_pairing():
-    """
-    Issue a fresh pairing token. Returns the token, expiry, and
-    connection info suitable for embedding in a QR code.
-
-    Side effect: any previously-issued-but-unused tokens for this
-    server remain valid until their TTL expires. Only tokens consumed
-    on successful upload are invalidated. This allows regenerating
-    a QR without invalidating a scan in progress.
-    """
     token, expires = tokens.issue()
     tokens.cleanup_expired()
     return {
@@ -85,10 +68,6 @@ async def issue_pairing():
 
 @app.get("/pairing/qr.png")
 async def pairing_qr():
-    """
-    Issue a fresh pairing token and render it as a QR code PNG.
-    Payload is the same JSON as /pairing.
-    """
     token, expires = tokens.issue()
     tokens.cleanup_expired()
     payload = {
@@ -122,10 +101,6 @@ async def upload_file(
     file: UploadFile = File(...),
     x_pairing_token: str = Header(...),
 ):
-    # Validate token. Single-use: consumed on success.
-    # Note: we consume even if the upload later fails to write,
-    # because the token has already been presented. If the upload
-    # fails, the client must rescan.
     if not tokens.validate_and_consume(x_pairing_token):
         raise HTTPException(status_code=403, detail="Invalid or expired pairing token")
 
@@ -145,6 +120,20 @@ async def upload_file(
                 out.write(chunk)
                 total_bytes += len(chunk)
         await file.close()
+
+        # Signal the GUI that a file was received
+        try:
+            signal_path = DOWNLOAD_DIR.parent / "last_received.json"
+            signal_path.write_text(json.dumps({
+                "filename": file.filename,
+                "stored_filename": final_name,
+                "size_bytes": total_bytes,
+                "sha256": sha256.hexdigest(),
+                "received_at": time.time(),
+            }), encoding="utf-8")
+        except Exception:
+            pass  # don't fail the upload if the signal write fails
+
         return JSONResponse({
             "status": "success",
             "original_filename": file.filename,
@@ -160,5 +149,4 @@ async def upload_file(
 
 @app.get("/pairing/status")
 async def pairing_status():
-    """Diagnostic endpoint — shows how many tokens are currently active."""
     return {"active_tokens": tokens.active_count(), "ttl_seconds": PAIRING_TOKEN_TTL}
