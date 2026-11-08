@@ -70,6 +70,14 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Send to Windows"
+            android:layout_marginBottom="8dp"/>
+
+        <Button
+            android:id="@+id/cancelButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Pause"
+            android:enabled="false"
             android:layout_marginBottom="24dp"/>
 
         <ProgressBar
