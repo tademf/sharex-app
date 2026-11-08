@@ -1,0 +1,77 @@
+# ============================================================
+# SHAREX .gitignore
+# ============================================================
+
+# --- Python ---
+*.py[cod]
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# --- Python local data ---
+desktop/downloads/*
+!desktop/downloads/.gitkeep
+
+# --- Android ---
+.gradle/
+build/
+local.properties
+gradle-app.setting
+
+# Android Studio
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Android keystore
+*.jks
+*.keystore
+keystore.properties
+
+# Gradle cache inside project
+android/ShareXAndroid2/.gradle/
+
+# Build outputs
+android/ShareXAndroid2/app/build/
+android/ShareXAndroid2/build/
+android/ShareXAndroid2/venv/
+
+# --- Windows ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# --- macOS ---
+.DS_Store
+
+# --- IDE / Editor ---
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Env / Secrets ---
+.env
+.env.*
+*.secret
+secrets.json
+
+# --- SHAREX runtime artifacts ---
+desktop/sender/last_response.json
+test.txt
+Task
