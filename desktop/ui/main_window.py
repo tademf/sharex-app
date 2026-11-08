@@ -11,6 +11,7 @@ from ui.send_page import SendPage
 from ui.receive_page import ReceivePage
 from ui.history_page import HistoryPage
 from ui.settings_page import SettingsPage
+from ui.tray import TrayIcon
 
 
 class MainWindow(QMainWindow):
@@ -44,14 +45,15 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.settings_page, "Settings")
         layout.addWidget(self.tabs, 1)
 
-        # NOTE: Receive page's QR is for phone → Windows uploads (phone scans,
-        # uploads to Windows). It contains Windows's IP, not the phone's.
-        # Send page needs the phone's IP, so we do NOT auto-fill from the QR.
-        # TODO Phase 5: implement bidirectional QR that carries both devices' info.
+        # Note: Receive page's QR is for phone → Windows uploads. Its IP is
+        # the laptop's IP, not the phone's, so we don't auto-fill SendPage.
 
         style_path = Path(__file__).parent / "style.qss"
         if style_path.exists():
             self.setStyleSheet(style_path.read_text(encoding="utf-8"))
+
+        # System tray
+        self.tray = TrayIcon(self)
 
     def _build_header(self) -> QWidget:
         header = QWidget()
@@ -74,13 +76,13 @@ class MainWindow(QMainWindow):
 
         return header
 
-    # def _on_pairing_changed(self, ip: str, token: str):
-    #     """Disabled in Phase 4 — see comment in __init__."""
-    #     pass
-
     def closeEvent(self, event: QCloseEvent):
         try:
             self.receive_page.shutdown()
+        except Exception:
+            pass
+        try:
+            self.tray.hide()
         except Exception:
             pass
         event.accept()
