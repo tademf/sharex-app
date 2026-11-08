@@ -13,14 +13,14 @@ import androidx.core.app.NotificationCompat
 
 class ReceiverService : Service() {
 
-    private var server: SimpleHttpServer? = null
+    private var server: SharexServer? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForegroundWithNotification()
         if (server == null) {
-           server = SimpleHttpServer(
+           server = SharexServer(
                 context = applicationContext,
                 onFileReceived = { name, size, sha ->
                     Log.i("SHAREX-RECEIVER", "received $name ($size bytes) sha256=$sha")
