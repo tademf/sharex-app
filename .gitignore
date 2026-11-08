@@ -78,4 +78,6 @@ desktop/sharx_history.db
 desktop/last_received.json
 desktop/settings.json
 test.txt
-Task
+
+# --- Test / scratch files ---
+*.bin
