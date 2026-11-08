@@ -73,5 +73,6 @@ secrets.json
 
 # --- SHAREX runtime artifacts ---
 desktop/sender/last_response.json
+desktop/pairing.png
 test.txt
 Task

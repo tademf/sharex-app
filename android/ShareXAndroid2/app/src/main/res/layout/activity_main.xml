@@ -13,7 +13,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="SHAREX — Phase 2"
+            android:text="SHAREX — Phase 3"
             android:textSize="22sp"
             android:textStyle="bold"
             android:layout_marginBottom="4dp"/>
@@ -21,10 +21,27 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Android ↔ Windows offline transfer"
+            android:text="QR pairing + bidirectional transfer"
             android:textSize="13sp"
             android:layout_marginBottom="20dp"/>
 
+        <!-- Phase 3: QR scan section -->
+        <Button
+            android:id="@+id/scanQrButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Scan QR from Windows"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="— or enter manually —"
+            android:textSize="11sp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="12dp"/>
+
+        <!-- Manual entry -->
         <EditText
             android:id="@+id/serverIpInput"
             android:layout_width="match_parent"

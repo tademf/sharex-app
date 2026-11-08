@@ -16,6 +16,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.sharex.app.receiver.ReceiverService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -26,6 +28,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okio.BufferedSink
+import org.json.JSONObject
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
 
@@ -39,6 +42,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var startReceiverButton: Button
     private lateinit var receiverStatusText: TextView
+    private lateinit var scanQrButton: Button
 
     private var selectedFileUri: Uri? = null
     private var selectedFileName: String? = null
@@ -49,6 +53,39 @@ class MainActivity : AppCompatActivity() {
         .writeTimeout(10, TimeUnit.MINUTES)
         .readTimeout(10, TimeUnit.MINUTES)
         .build()
+
+    // QR scanner — ZXing launches its own camera activity
+    private val scanQrLauncher = registerForActivityResult(ScanContract()) { result ->
+        if (result.contents == null) {
+            statusText.text = "QR scan cancelled"
+            return@registerForActivityResult
+        }
+        val raw = result.contents
+        try {
+            val obj = JSONObject(raw)
+            val ip = obj.optString("ip", "")
+            val port = obj.optInt("port", 8000)
+            val token = obj.optString("token", "")
+            val device = obj.optString("device", "Unknown device")
+
+            if (ip.isEmpty() || token.isEmpty()) {
+                statusText.text = "QR missing ip or token"
+                return@registerForActivityResult
+            }
+
+            serverIpInput.setText(ip)
+            tokenInput.setText(token)
+            statusText.text = "Paired with $device\nIP: $ip  Port: $port\nSelect a file to send."
+        } catch (e: Exception) {
+            statusText.text = "Invalid QR: not a SHAREX code\n${e.message}"
+        }
+    }
+
+    private val cameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) launchScanner() else statusText.text = "Camera permission denied"
+    }
 
     private val pickFileLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
@@ -75,11 +112,23 @@ class MainActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         startReceiverButton = findViewById(R.id.startReceiverButton)
         receiverStatusText = findViewById(R.id.receiverStatusText)
+        scanQrButton = findViewById(R.id.scanQrButton)
 
         serverIpInput.setText("192.168.137.1")
-        tokenInput.setText("sharex-phase1-test")
+        tokenInput.setText("")
         sendButton.isEnabled = false
         receiverStatusText.text = "Receiver: stopped"
+
+        scanQrButton.setOnClickListener {
+            val hasCamera = ContextCompat.checkSelfPermission(
+                this, Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasCamera) {
+                launchScanner()
+            } else {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        }
 
         selectFileButton.setOnClickListener {
             pickFileLauncher.launch("*/*")
@@ -90,7 +139,7 @@ class MainActivity : AppCompatActivity() {
             val ip = serverIpInput.text.toString().trim()
             val token = tokenInput.text.toString().trim()
             if (ip.isEmpty() || token.isEmpty()) {
-                Toast.makeText(this, "Enter IP and token", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Enter IP and token (or scan QR)", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             uploadFile(uri, ip, token)
@@ -110,6 +159,17 @@ class MainActivity : AppCompatActivity() {
             }
             startReceiver()
         }
+    }
+
+    private fun launchScanner() {
+        val options = ScanOptions().apply {
+            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            setPrompt("Point at the SHAREX QR on your laptop")
+            setBeepEnabled(false)
+            setOrientationLocked(false)
+            setBarcodeImageEnabled(false)
+        }
+        scanQrLauncher.launch(options)
     }
 
     private fun startReceiver() {
@@ -178,7 +238,6 @@ class MainActivity : AppCompatActivity() {
                             ?: throw IllegalStateException("Cannot open file")
                         inputStream.use { input ->
                             val buffer = ByteArray(8192)
-                            var bytesRead: Int
                             var totalRead = 0L
                             while (true) {
                                 val read = input.read(buffer)

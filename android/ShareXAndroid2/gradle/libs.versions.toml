@@ -11,6 +11,8 @@ constraintlayout = "2.1.4"
 okhttp = "4.12.0"
 coroutinesAndroid = "1.9.0"
 nanohttpd = "2.3.1"
+zxingEmbedded = "4.3.0"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -23,6 +25,7 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutinesAndroid" }
 nanohttpd = { group = "org.nanohttpd", name = "nanohttpd", version.ref = "nanohttpd" }
+zxing-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxingEmbedded" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-
