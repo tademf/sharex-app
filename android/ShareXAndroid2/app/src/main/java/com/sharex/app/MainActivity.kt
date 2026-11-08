@@ -9,13 +9,17 @@ import android.os.Bundle
 import android.provider.OpenableColumns
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.tabs.TabLayout
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.sharex.app.receiver.ReceiverService
@@ -27,6 +31,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var drawerLayout: DrawerLayout
+    private lateinit var menuButton: ImageButton
+    private lateinit var tabLayout: TabLayout
+
     private lateinit var serverIpInput: EditText
     private lateinit var tokenInput: EditText
     private lateinit var selectFileButton: Button
@@ -36,7 +44,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var startReceiverButton: Button
     private lateinit var receiverStatusText: TextView
-    private lateinit var scanQrButton: Button
+    private lateinit var scanQrButton: ImageButton
 
     private var selectedFileUri: Uri? = null
     private var selectedFileName: String? = null
@@ -98,6 +106,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Initialize Sidebar & Tabs
+        drawerLayout = findViewById(R.id.drawer_layout)
+        menuButton = findViewById(R.id.menuButton)
+        tabLayout = findViewById(R.id.tabLayout)
+
         serverIpInput = findViewById(R.id.serverIpInput)
         tokenInput = findViewById(R.id.tokenInput)
         selectFileButton = findViewById(R.id.selectFileButton)
@@ -116,6 +129,27 @@ class MainActivity : AppCompatActivity() {
         cancelButton.text = "Pause"
         receiverStatusText.text = "Receiver: stopped"
 
+        // --- Setup Sidebar (Drawer) ---
+        menuButton.setOnClickListener {
+            drawerLayout.openDrawer(GravityCompat.START)
+        }
+
+        // --- Setup Tabs (History, Apps, Photos, etc.) ---
+        val tabs = arrayOf("History", "Apps", "Photos", "Videos", "Music", "Files", "Contacts")
+        for (tab in tabs) {
+            tabLayout.addTab(tabLayout.newTab().setText(tab))
+        }
+
+        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                // Coming soon feature
+                Toast.makeText(this@MainActivity, "${tab?.text} coming soon!", Toast.LENGTH_SHORT).show()
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
+        })
+
+        // --- QR Scanner ---
         scanQrButton.setOnClickListener {
             val hasCamera = ContextCompat.checkSelfPermission(
                 this, Manifest.permission.CAMERA
@@ -124,6 +158,7 @@ class MainActivity : AppCompatActivity() {
             else cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
 
+        // --- File Selection & Transfer ---
         selectFileButton.setOnClickListener {
             pickFileLauncher.launch("*/*")
         }
@@ -183,13 +218,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleCancelOrPause() {
         if (!isPaused) {
-            // First tap = pause
             pauseFlag.set(true)
             cancelButton.text = "Resume"
             statusText.text = "Pausing…"
             isPaused = true
         } else {
-            // Second tap = resume
             pauseFlag.set(false)
             cancelButton.text = "Pause"
             isPaused = false

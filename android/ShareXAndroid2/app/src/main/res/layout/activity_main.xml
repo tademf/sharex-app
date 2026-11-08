@@ -1,132 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:layout_height="match_parent">
 
+    <!-- MAIN CONTENT -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:background="#FFFFFF">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="SHAREX — Phase 3"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="4dp"/>
+        <!-- TOP GREEN BAR -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:background="#009688"
+            android:padding="16dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="QR pairing + bidirectional transfer"
-            android:textSize="13sp"
-            android:layout_marginBottom="20dp"/>
+            <ImageButton
+                android:id="@+id/menuButton"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_centerVertical="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_menu" />
 
-        <!-- Phase 3: QR scan section -->
-        <Button
-            android:id="@+id/scanQrButton"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_marginLeft="48dp"
+                android:text="SHAREX"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/scanQrButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_alignParentRight="true"
+                android:layout_centerVertical="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_qr"
+                android:tint="#FFFFFF" />
+        </RelativeLayout>
+
+        <!-- TAB LAYOUT -->
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Scan QR from Windows"
-            android:layout_marginBottom="8dp"/>
+            android:background="#009688"
+            app:tabIndicatorColor="#FFFFFF"
+            app:tabSelectedTextColor="#FFFFFF"
+            app:tabTextColor="#B2DFDB" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="— or enter manually —"
-            android:textSize="11sp"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="12dp"/>
-
-        <!-- Manual entry -->
-        <EditText
-            android:id="@+id/serverIpInput"
+        <!-- CONTENT AREA -->
+        <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Windows IP (e.g. 192.168.137.1)"
-            android:inputType="text"
-            android:layout_marginBottom="12dp"/>
+            android:layout_height="match_parent">
 
-        <EditText
-            android:id="@+id/tokenInput"
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Connection Section -->
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Windows IP" android:textColor="#757575" android:textSize="12sp"/>
+                <EditText android:id="@+id/serverIpInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="192.168.137.1" android:textColor="#212121"/>
+
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pairing Token" android:textColor="#757575" android:textSize="12sp" android:layout_marginTop="8dp"/>
+                <EditText android:id="@+id/tokenInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Paste token" android:textColor="#212121"/>
+
+                <!-- Action Buttons -->
+                <Button
+                    android:id="@+id/selectFileButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="Select File"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#009688"
+                    android:layout_marginTop="16dp"/>
+
+                <Button
+                    android:id="@+id/sendButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="Transfer Now"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#009688"
+                    android:enabled="false"
+                    android:layout_marginTop="8dp"/>
+
+                <!-- Progress & Status -->
+                <ProgressBar android:id="@+id/progressBar" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:progressTint="#009688" android:visibility="gone" android:layout_marginTop="8dp"/>
+                <TextView android:id="@+id/statusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Ready" android:textColor="#009688" android:layout_marginTop="8dp"/>
+
+                <!-- Dummy hidden buttons for Kotlin logic to not crash -->
+                <Button android:id="@+id/cancelButton" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone"/>
+                <Button android:id="@+id/startReceiverButton" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone"/>
+                <TextView android:id="@+id/receiverStatusText" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone"/>
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+
+    <!-- SIDEBAR (DRAWER) -->
+    <LinearLayout
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="#FFFFFF"
+        android:orientation="vertical">
+
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Pairing token"
-            android:inputType="text"
-            android:layout_marginBottom="20dp"/>
+            android:layout_height="160dp"
+            android:background="#009688"
+            android:gravity="center"
+            android:orientation="vertical">
+            
+            <ImageView android:layout_width="64dp" android:layout_height="64dp" android:src="@drawable/ic_person" android:background="#FFFFFF" android:backgroundTint="#FFFFFF" android:padding="4dp"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SHAREX User" android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold" android:layout_marginTop="8dp"/>
+        </LinearLayout>
 
-        <Button
-            android:id="@+id/selectFileButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Select File"
-            android:layout_marginBottom="12dp"/>
-
-        <Button
-            android:id="@+id/sendButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Send to Windows"
-            android:layout_marginBottom="8dp"/>
-
-        <Button
-            android:id="@+id/cancelButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Pause"
-            android:enabled="false"
-            android:layout_marginBottom="24dp"/>
-
-        <ProgressBar
-            android:id="@+id/progressBar"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="100"
-            android:visibility="gone"
-            android:layout_marginBottom="16dp"/>
-
-        <TextView
-            android:id="@+id/statusText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Ready"
-            android:textSize="13sp"
-            android:textIsSelectable="true"/>
-
-        <!-- Phase 2: Receive section -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="?android:attr/listDivider"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="16dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Receive files (Windows → Android)"
-            android:textStyle="bold"
-            android:textSize="15sp"
-            android:layout_marginBottom="12dp"/>
-
-        <Button
-            android:id="@+id/startReceiverButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Start Receiver on port 8080"
-            android:layout_marginBottom="12dp"/>
-
-        <TextView
-            android:id="@+id/receiverStatusText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Receiver: stopped"
-            android:textSize="13sp"
-            android:layout_marginBottom="16dp"/>
+        <!-- Sidebar Menu Items -->
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="  Profile" android:padding="16dp" android:textSize="16sp" android:textColor="#212121"/>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="  Language" android:padding="16dp" android:textSize="16sp" android:textColor="#212121"/>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="  Settings" android:padding="16dp" android:textSize="16sp" android:textColor="#212121"/>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="  About" android:padding="16dp" android:textSize="16sp" android:textColor="#212121"/>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="  Rate Us" android:padding="16dp" android:textSize="16sp" android:textColor="#212121"/>
 
     </LinearLayout>
-</ScrollView>
+
+</androidx.drawerlayout.widget.DrawerLayout>
